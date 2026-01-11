@@ -59,6 +59,11 @@
 #'   \itemize{
 #'     \item 单位：**毫米汞柱 (mmHg)**。
 #'   }
+#' @param language 字符串。评价结果的语言，可选 `"chinese"`（默认）或 `"english"`。
+#'   \itemize{
+#'     \item `"chinese"`: 返回中文标识（正常、正常高值、1期高血压、2期高血压）
+#'     \item `"english"`: 返回英文标识（Normal、High-normal、Stage 1、Stage 2）
+#'   }
 #'
 #' @return 返回原始数据框 `data`，并在最后增加一列：
 #' \item{BP_Evaluation}{字符型列，包含评价结果："正常"、"正常高值"、"1期高血压"、"2期高血压"、"缺失" 或 "无法评价(年龄/身高超出范围)"。}
@@ -90,12 +95,40 @@
 #' # evaluate_bp(df_complex,
 #' #             sex_col = "sex", age_col = "age", height_col = "ht",
 #' #             sbp_col = "sbp", dbp_col = "dbp")
+#'
+#' # 3. 使用英文标识
+#' # evaluate_bp(df_basic, language = "english")
 evaluate_bp <- function(data,
                         sex_col = "性别",
                         age_col = "年龄",
                         height_col = "身高",
                         sbp_col = "收缩压",
-                        dbp_col = "舒张压") {
+                        dbp_col = "舒张压",
+                        language = c("chinese", "english")) {
+
+  # 0. 匹配语言参数
+  language <- match.arg(language)
+
+  # 定义评价标签（中英文）
+  labels <- if (language == "chinese") {
+    list(
+      normal = "正常",
+      high_normal = "正常高值",
+      stage1 = "1期高血压",
+      stage2 = "2期高血压",
+      missing = "缺失",
+      out_of_range = "无法评价(年龄/身高超出范围)"
+    )
+  } else {
+    list(
+      normal = "Normal",
+      high_normal = "High-normal",
+      stage1 = "Stage 1",
+      stage2 = "Stage 2",
+      missing = "Missing",
+      out_of_range = "N/A"
+    )
+  }
 
   # 1. 检查必要列是否存在
   required_cols <- c(sex_col, age_col, height_col, sbp_col, dbp_col)
@@ -198,32 +231,32 @@ evaluate_bp <- function(data,
     dplyr::mutate(
       # --- 收缩压 (SBP) 评价 ---
       sbp_status = dplyr::case_when(
-        is.na(SBP_) ~ "缺失",
+        is.na(SBP_) ~ labels$missing,
         # 2期: >= P99 + 5 mmHg
-        SBP_ >= (SBP_P99 + 5) ~ "2期高血压",
+        SBP_ >= (SBP_P99 + 5) ~ labels$stage2,
         # 1期: P95 ~ P99 + 5
-        SBP_ >= SBP_P95 ~ "1期高血压",
+        SBP_ >= SBP_P95 ~ labels$stage1,
         # 正常高值: P90 ~ P95 或 >= 120 (即使小于P90)
-        SBP_ >= SBP_P90 | SBP_ >= 120 ~ "正常高值",
-        TRUE ~ "正常"
+        SBP_ >= SBP_P90 | SBP_ >= 120 ~ labels$high_normal,
+        TRUE ~ labels$normal
       ),
 
       # --- 舒张压 (DBP) 评价 ---
       dbp_status = dplyr::case_when(
-        is.na(DBP_) ~ "缺失",
-        DBP_ >= (DBP_P99 + 5) ~ "2期高血压",
-        DBP_ >= DBP_P95 ~ "1期高血压",
-        DBP_ >= DBP_P90 | DBP_ >= 80 ~ "正常高值",
-        TRUE ~ "正常"
+        is.na(DBP_) ~ labels$missing,
+        DBP_ >= (DBP_P99 + 5) ~ labels$stage2,
+        DBP_ >= DBP_P95 ~ labels$stage1,
+        DBP_ >= DBP_P90 | DBP_ >= 80 ~ labels$high_normal,
+        TRUE ~ labels$normal
       ),
 
       # --- 综合评价 (取两者中较严重者) ---
       BP_Evaluation = dplyr::case_when(
-        sbp_status == "2期高血压" | dbp_status == "2期高血压" ~ "2期高血压",
-        sbp_status == "1期高血压" | dbp_status == "1期高血压" ~ "1期高血压",
-        sbp_status == "正常高值" | dbp_status == "正常高值" ~ "正常高值",
-        sbp_status == "缺失" | dbp_status == "缺失" ~ "缺失",
-        TRUE ~ "正常"
+        sbp_status == labels$stage2 | dbp_status == labels$stage2 ~ labels$stage2,
+        sbp_status == labels$stage1 | dbp_status == labels$stage1 ~ labels$stage1,
+        sbp_status == labels$high_normal | dbp_status == labels$high_normal ~ labels$high_normal,
+        sbp_status == labels$missing | dbp_status == labels$missing ~ labels$missing,
+        TRUE ~ labels$normal
       )
     ) %>%
     dplyr::select(..temp_id.., BP_Evaluation)
@@ -237,7 +270,7 @@ evaluate_bp <- function(data,
     dplyr::select(-..temp_id..)
 
   # 填补未匹配到的行 (年龄过大/过小，或者身高数据缺失)
-  final_result$BP_Evaluation[is.na(final_result$BP_Evaluation)] <- "无法评价(年龄/身高超出范围)"
+  final_result$BP_Evaluation[is.na(final_result$BP_Evaluation)] <- labels$out_of_range
 
   return(final_result)
 }
