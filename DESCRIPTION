@@ -1,16 +1,16 @@
 Package: CNChildBP
-Title: What the Package Does (One Line, Title Case)
+Title: Chinese Child and Adolescent Blood Pressure Evaluation
 Version: 0.0.0.9000
-Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+Authors@R:
+    person("Liangliang", "Chen", , "chenliangliang@example.com", role = c("aut", "cre"))
+Description: A comprehensive R package for evaluating blood pressure in Chinese children and adolescents (ages 3-17) based on the 2017 National Reference Standards. Provides automated data cleaning, intelligent age parsing, and batch evaluation with strict adherence to clinical guidelines including the 120/80 mmHg cap rule.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
-Depends: 
+Depends:
     R (>= 3.5)
 LazyData: true
-Imports: 
+Imports:
     dplyr,
     stringr
