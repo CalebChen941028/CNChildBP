@@ -6,7 +6,7 @@ test_that("evaluate_bp returns expected labels in Chinese and English", {
   row <- standards[1, , drop = FALSE]
   height_mid <- floor(((row$Height_Lower + row$Height_Upper) / 2) + 0.5)
 
-  df <- data.frame(
+  df_cn <- data.frame(
     性别 = row$Sex,
     年龄 = row$Age,
     身高 = height_mid,
@@ -14,11 +14,19 @@ test_that("evaluate_bp returns expected labels in Chinese and English", {
     舒张压 = row$DBP_P90 - 1
   )
 
-  res_cn <- evaluate_bp(df, language = "chinese")
+  res_cn <- evaluate_bp(df_cn, language = "chinese")
   expect_true("BP_Evaluation" %in% names(res_cn))
   expect_equal(res_cn$BP_Evaluation[[1]], "正常")
 
-  res_en <- evaluate_bp(df, language = "english")
+  df_en <- data.frame(
+    sex = if (identical(row$Sex, "男")) "male" else "female",
+    age = row$Age,
+    height = height_mid,
+    sbp = row$SBP_P90 - 1,
+    dbp = row$DBP_P90 - 1
+  )
+
+  res_en <- evaluate_bp(df_en, language = "english")
   expect_equal(res_en$BP_Evaluation[[1]], "Normal")
 })
 
@@ -72,11 +80,11 @@ test_that("120/80 cap rule produces High-normal even below P90", {
   # Force SBP/DBP to 120/80 which should trigger High-normal by cap rule,
   # even though it's below P90 for this row.
   df <- data.frame(
-    性别 = row$Sex,
-    年龄 = row$Age,
-    身高 = height_mid,
-    收缩压 = 120,
-    舒张压 = 80
+    sex = if (identical(row$Sex, "男")) "male" else "female",
+    age = row$Age,
+    height = height_mid,
+    sbp = 120,
+    dbp = 80
   )
 
   res <- evaluate_bp(df, language = "english")
@@ -89,11 +97,11 @@ test_that("missing BP yields Missing label", {
   height_mid <- floor(((row$Height_Lower + row$Height_Upper) / 2) + 0.5)
 
   df <- data.frame(
-    性别 = row$Sex,
-    年龄 = row$Age,
-    身高 = height_mid,
-    收缩压 = NA_real_,
-    舒张压 = row$DBP_P90 - 1
+    sex = if (identical(row$Sex, "男")) "male" else "female",
+    age = row$Age,
+    height = height_mid,
+    sbp = NA_real_,
+    dbp = row$DBP_P90 - 1
   )
 
   res <- evaluate_bp(df, language = "english")
@@ -102,11 +110,11 @@ test_that("missing BP yields Missing label", {
 
 test_that("out of range age yields out_of_range label", {
   df <- data.frame(
-    性别 = "男",
-    年龄 = 2,
-    身高 = 100,
-    收缩压 = 100,
-    舒张压 = 60
+    sex = "male",
+    age = 2,
+    height = 100,
+    sbp = 100,
+    dbp = 60
   )
 
   res <- evaluate_bp(df, language = "english")

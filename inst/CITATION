@@ -1,0 +1,22 @@
+citHeader("To cite CNChildBP in publications")
+
+citEntry(
+  entry    = "Article",
+  title    = "\u4e2d\u56fd3\uff5e17\u5c81\u513f\u7ae5\u6027\u522b\u3001\u5e74\u9f84\u522b\u548c\u8eab\u9ad8\u522b\u8840\u538b\u53c2\u7167\u6807\u51c6\u4fee\u8ba2",
+  author   = c(
+    person("Hui", "Fan"),
+    person("Yinkun", "Yan"),
+    person("Jie", "Mi")
+  ),
+  journal  = "Chinese Journal of Hypertension",
+  year     = "2017",
+  volume   = "25",
+  number   = "5",
+  pages    = "428-435",
+  doi      = "10.16439/j.cnki.1673-7245.2017.05.009",
+  textVersion = paste(
+    "Fan H, Yan Y, Mi J. Chinese 3-17y sex-/age-/height-specific blood pressure reference standard revision.",
+    "Chinese Journal of Hypertension. 2017;25(5):428-435.",
+    "doi:10.16439/j.cnki.1673-7245.2017.05.009"
+  )
+)

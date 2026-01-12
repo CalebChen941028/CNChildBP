@@ -3,6 +3,7 @@
 if (getRversion() >= "2.15.1") {
   utils::globalVariables(c(
     "bp_standards",
+    "Sex_",
     "Age_Raw_", "Age_Parsed_", "Age_Final_",
     "Height_", "Height_Final_", "Height_Lower", "Height_Upper",
     "..temp_id..", "BP_Evaluation",

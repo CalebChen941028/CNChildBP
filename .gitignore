@@ -4,6 +4,12 @@
 .RData
 .claude/
 
+# R CMD check / devtools check artifacts
+CNChildBP.Rcheck/
+check_*.txt
+checks_logs/
+CNChildBP_*.tar.gz
+
 # 大型原始数据文件（保留处理脚本）
 data-raw/*.csv
 data-raw/*.xlsx

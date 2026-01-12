@@ -8,6 +8,20 @@
 #' rounding and percentile-based classification.
 #'
 #' @details
+#' Column mapping behavior:
+#' \itemize{
+#'   \item If `sex_col/age_col/height_col/sbp_col/dbp_col` are not provided (all `NULL`), the function selects a default column-name mapping by `language`.
+#'   \item `language = "chinese"` prefers: "性别"/"年龄"/"身高"/"收缩压"/"舒张压".
+#'   \item `language = "english"` prefers: "sex"/"age"/"height"/"sbp"/"dbp".
+#'   \item If the preferred set is not found and the user did not provide any mapping arguments, the function will try the other set as a fallback.
+#'   \item If any `*_col` is explicitly provided, the function uses the provided mapping (no automatic fallback).
+#' }
+#'
+#' Sex normalization:
+#' \itemize{
+#'   \item Common inputs such as "male"/"female" (or "m"/"f") are normalized to "男"/"女" before table lookup.
+#' }
+#'
 #' Robust age parsing logic:
 #' \itemize{
 #'   \item Mixed years and months (e.g. "3 years 5 months") are parsed as \eqn{years + months/12}.
@@ -28,13 +42,32 @@
 #'   \item Stage 2 Hypertension: BP ≥ P99 + 5 mmHg
 #' }
 #'
+#' Important note (diagnosis vs classification):
+#' \itemize{
+#'   \item This function performs single-record BP \emph{classification} based on percentile thresholds.
+#'   \item Clinical \emph{diagnosis} of pediatric hypertension typically requires elevated BP (≥ P95)
+#'     confirmed at multiple visits (e.g., re-check after 2--4 weeks and confirmed across 3 time points),
+#'     as described in related hypertension guidelines.
+#' }
+#'
 #' @param data A data.frame containing measurements to evaluate.
-#' @param sex_col Character; name of the sex column (default: "sex").
-#' @param age_col Character; name of the age column (default: "age").
-#'   Supported formats: numeric, "10", "10.5", "75months", "3y5m", etc.
-#' @param height_col Character; name of the height column in cm (default: "height").
-#' @param sbp_col Character; name of systolic BP column (default: "sbp").
-#' @param dbp_col Character; name of diastolic BP column (default: "dbp").
+#' @param sex_col Character; name of the sex column.
+#'   If `NULL` (default), the function uses a language-specific default mapping:
+#'   Chinese: "性别"; English: "sex".
+#' @param age_col Character; name of the age column.
+#'   If `NULL` (default), the function uses a language-specific default mapping:
+#'   Chinese: "年龄"; English: "age".
+#'   Supported formats include numeric years, "10", "10.5", "10岁",
+#'   "3岁5月", "3y5m", "75months", "75月", etc.
+#' @param height_col Character; name of the height column in cm.
+#'   If `NULL` (default), the function uses a language-specific default mapping:
+#'   Chinese: "身高"; English: "height".
+#' @param sbp_col Character; name of systolic BP column.
+#'   If `NULL` (default), the function uses a language-specific default mapping:
+#'   Chinese: "收缩压"; English: "sbp".
+#' @param dbp_col Character; name of diastolic BP column.
+#'   If `NULL` (default), the function uses a language-specific default mapping:
+#'   Chinese: "舒张压"; English: "dbp".
 #' @param language Character; one of "chinese" (default) or "english" for output labels.
 #'
 #' @return The input data.frame with an added `BP_Evaluation` column.
@@ -44,17 +77,27 @@
 #' @export
 #'
 #' @examples
-#' # 1. Basic usage
-#' df_basic <- data.frame(
+#' # 1. Basic usage (Chinese columns; default language = "chinese")
+#' df_cn <- data.frame(
 #'   性别 = c("男", "女"),
 #'   年龄 = c(10, 12),
 #'   身高 = c(140, 150),
 #'   收缩压 = c(110, 130),
 #'   舒张压 = c(70, 85)
 #' )
-#' # evaluate_bp(df_basic)
+#' # evaluate_bp(df_cn)
 #'
-#' # 2. Handle mixed age formats
+#' # 2. Basic usage (English columns; use language = "english")
+#' df_en <- data.frame(
+#'   sex = c("male", "female"),
+#'   age = c(10, 12),
+#'   height = c(140, 150),
+#'   sbp = c(110, 130),
+#'   dbp = c(70, 85)
+#' )
+#' # evaluate_bp(df_en, language = "english")
+#'
+#' # 3. Handle mixed age formats
 #' df_complex <- data.frame(
 #'   sex = c("male", "male", "female"),
 #'   age = c("75months", "3y5m", "120"), # 6.25y, 3.41y, 10y
@@ -62,24 +105,48 @@
 #'   sbp = c(110, 90, 130),
 #'   dbp = c(70, 60, 85)
 #' )
-#' # evaluate_bp(df_complex,
-#' #             sex_col = "sex", age_col = "age", height_col = "height",
-#' #             sbp_col = "sbp", dbp_col = "dbp")
+#' # evaluate_bp(df_complex, language = "english")
 #'
-#' # 3. Use English labels
-#' # evaluate_bp(df_basic, language = "english")
+#' # 4. Output labels can be switched via `language`
+#' # evaluate_bp(df_cn, language = "english")
 evaluate_bp <- function(data,
-                        sex_col = "\u6027\u522b",
-                        age_col = "\u5e74\u9f84",
-                        height_col = "\u8eab\u9ad8",
-                        sbp_col = "\u6536\u7f29\u538b",
-                        dbp_col = "\u8212\u5f20\u538b",
+                        sex_col = NULL,
+                        age_col = NULL,
+                        height_col = NULL,
+                        sbp_col = NULL,
+                        dbp_col = NULL,
                         language = c("chinese", "english")) {
 
   # 0. match language argument
   language <- match.arg(language)
 
-  # define labels (Chinese/English)
+  # 0b. column name mapping defaults
+  user_provided_mapping <- !is.null(sex_col) || !is.null(age_col) || !is.null(height_col) || !is.null(sbp_col) || !is.null(dbp_col)
+  default_cols <- if (language == "chinese") {
+    list(
+      sex_col = "\u6027\u522b",
+      age_col = "\u5e74\u9f84",
+      height_col = "\u8eab\u9ad8",
+      sbp_col = "\u6536\u7f29\u538b",
+      dbp_col = "\u8212\u5f20\u538b"
+    )
+  } else {
+    list(
+      sex_col = "sex",
+      age_col = "age",
+      height_col = "height",
+      sbp_col = "sbp",
+      dbp_col = "dbp"
+    )
+  }
+
+  if (is.null(sex_col)) sex_col <- default_cols$sex_col
+  if (is.null(age_col)) age_col <- default_cols$age_col
+  if (is.null(height_col)) height_col <- default_cols$height_col
+  if (is.null(sbp_col)) sbp_col <- default_cols$sbp_col
+  if (is.null(dbp_col)) dbp_col <- default_cols$dbp_col
+
+  # define labels/messages (Chinese/English)
   labels <- if (language == "chinese") {
     list(
       normal = "\u6b63\u5e38",
@@ -100,11 +167,60 @@ evaluate_bp <- function(data,
     )
   }
 
+  messages <- if (language == "chinese") {
+    list(
+      missing_cols_prefix = "\u6570\u636e\u4e2d\u7f3a\u5c11\u4ee5\u4e0b\u5217: "
+    )
+  } else {
+    list(
+      missing_cols_prefix = "Missing required column(s): "
+    )
+  }
+
+  # helper: normalize sex values to match standards (typically "\u7537"/"\u5973")
+  normalize_sex <- function(x) {
+    x_chr <- stringr::str_trim(as.character(x))
+    x_lower <- tolower(x_chr)
+    dplyr::case_when(
+      is.na(x_chr) ~ NA_character_,
+      x_lower %in% c("\u7537", "m", "male", "boy", "man") ~ "\u7537",
+      x_lower %in% c("\u5973", "f", "female", "girl", "woman") ~ "\u5973",
+      TRUE ~ x_chr
+    )
+  }
+
   # 1. check required columns exist
   required_cols <- c(sex_col, age_col, height_col, sbp_col, dbp_col)
   missing_cols <- setdiff(required_cols, names(data))
+
+  # If user did not provide any mapping args, try the other language's defaults as a fallback.
+  if (length(missing_cols) > 0 && !user_provided_mapping) {
+    fallback_cols <- if (language == "chinese") {
+      list(sex_col = "sex", age_col = "age", height_col = "height", sbp_col = "sbp", dbp_col = "dbp")
+    } else {
+      list(
+        sex_col = "\u6027\u522b",
+        age_col = "\u5e74\u9f84",
+        height_col = "\u8eab\u9ad8",
+        sbp_col = "\u6536\u7f29\u538b",
+        dbp_col = "\u8212\u5f20\u538b"
+      )
+    }
+
+    fallback_required <- c(fallback_cols$sex_col, fallback_cols$age_col, fallback_cols$height_col, fallback_cols$sbp_col, fallback_cols$dbp_col)
+    if (all(fallback_required %in% names(data))) {
+      sex_col <- fallback_cols$sex_col
+      age_col <- fallback_cols$age_col
+      height_col <- fallback_cols$height_col
+      sbp_col <- fallback_cols$sbp_col
+      dbp_col <- fallback_cols$dbp_col
+      required_cols <- fallback_required
+      missing_cols <- character(0)
+    }
+  }
+
   if (length(missing_cols) > 0) {
-    stop("\u6570\u636e\u4e2d\u7f3a\u5c11\u4ee5\u4e0b\u5217: ", paste(missing_cols, collapse = ", "))
+    stop(messages$missing_cols_prefix, paste(missing_cols, collapse = ", "))
   }
 
   # ========================================================================
@@ -113,48 +229,42 @@ evaluate_bp <- function(data,
   parse_smart_age <- function(x) {
     # convert to character and remove whitespace
     x_str <- stringr::str_remove_all(as.character(x), "\\s+")
-    # numeric pattern (allow decimals)
-    num_pattern <- "\\d+(\\.\\d+)?"
+
+    year_pat <- "(?i)(\\d+(?:\\.\\d+)?)\\s*(\u5c81|y|yr|yrs|year|years)"
+    month_pat <- "(?i)(\\d+(?:\\.\\d+)?)\\s*(\u6708|m|mo|mos|month|months)"
+
+    extract_num <- function(s, pat) {
+      m <- stringr::str_match(s, pat)
+      if (is.null(dim(m)) || nrow(m) == 0 || is.na(m[1, 2])) return(NA_real_)
+      as.numeric(m[1, 2])
+    }
 
     sapply(x_str, function(s) {
       if (is.na(s) || s == "NA" || s == "") return(NA_real_)
 
-      val <- NA_real_
+      years <- extract_num(s, year_pat)
+      months <- extract_num(s, month_pat)
 
-      # pattern1: mixed years and months (e.g. "3y5m")
-      if (stringr::str_detect(s, "\u5c81") && stringr::str_detect(s, "\u6708")) {
-        parts <- stringr::str_match_all(s, num_pattern)[[1]][,1]
-        if (length(parts) >= 2) {
-          # years + months/12
-          val <- as.numeric(parts[1]) + as.numeric(parts[2]) / 12
-        }
+      if (!is.na(years) && !is.na(months)) {
+        return(years + months / 12)
       }
-      # pattern2: years only (e.g. "6y" / "6.5y")
-      else if (stringr::str_detect(s, "\u5c81")) {
-        num <- stringr::str_extract(s, num_pattern)
-        val <- as.numeric(num)
+
+      if (!is.na(years)) {
+        return(years)
       }
-      # pattern3: months only (e.g. "75months")
-      else if (stringr::str_detect(s, "\u6708")) {
-        num <- stringr::str_extract(s, num_pattern)
-        val <- as.numeric(num) / 12
+
+      if (!is.na(months)) {
+        return(months / 12)
       }
-      # pattern4: pure numeric strings ("6", "6.5", "74")
-      else {
-        num_val <- as.numeric(s)
-        if (!is.na(num_val)) {
-          # 智能阈值判断:
-          # 3-17岁是量表区间。18岁以上通常不适用此表。
-          # 如果数值 > 18，极大概率是“月龄”(如74月)
-          # 如果数值 <= 18，默认为“岁龄”
-          if (num_val > 18) {
-            val <- num_val / 12
-          } else {
-            val <- num_val
-          }
-        }
+
+      num_val <- suppressWarnings(as.numeric(s))
+      if (!is.na(num_val)) {
+        # If value > 18, it is likely months (e.g., 74 months). Otherwise treat as years.
+        if (num_val > 18) return(num_val / 12)
+        return(num_val)
       }
-      return(val)
+
+      NA_real_
     })
   }
 
@@ -172,6 +282,9 @@ evaluate_bp <- function(data,
       DBP_ = !!dplyr::sym(dbp_col)
     ) %>%
     dplyr::mutate(
+      # step 0: normalize sex to match reference table
+      Sex_ = normalize_sex(Sex_),
+
       # step A: parse age
       Age_Parsed_ = parse_smart_age(Age_Raw_),
 

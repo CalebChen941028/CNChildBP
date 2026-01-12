@@ -3,7 +3,7 @@
 
 library(CNChildBP)
 
-# Example data (use English column names to match package examples)
+# Example data (English column names)
 df <- data.frame(
   sex = c("男", "女"),
   age = c(10, 12),
@@ -14,28 +14,12 @@ df <- data.frame(
 )
 
 # 1) Evaluate with Chinese labels
-res_cn <- evaluate_bp(
-  data = df,
-  sex_col = "sex",
-  age_col = "age",
-  height_col = "height",
-  sbp_col = "sbp",
-  dbp_col = "dbp",
-  language = "chinese"
-)
+res_cn <- evaluate_bp(data = df, language = "chinese")
 
 print(res_cn$BP_Evaluation)
 
 # 2) Evaluate with English labels
-res_en <- evaluate_bp(
-  data = df,
-  sex_col = "sex",
-  age_col = "age",
-  height_col = "height",
-  sbp_col = "sbp",
-  dbp_col = "dbp",
-  language = "english"
-)
+res_en <- evaluate_bp(data = df, language = "english")
 
 print(res_en$BP_Evaluation)
 

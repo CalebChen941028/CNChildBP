@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "CNChildBP"
+type: software
+authors:
+  - family-names: "Chen"
+    given-names: "Liangliang"
+    email: "blingblingchen@126.com"
+license: "MIT"
+repository-code: "https://github.com/CalebChen941028/CNChildBP"
+preferred-citation:
+  type: article
+  title: "\u4e2d\u56fd3\uff5e17\u5c81\u513f\u7ae5\u6027\u522b\u3001\u5e74\u9f84\u522b\u548c\u8eab\u9ad8\u522b\u8840\u538b\u53c2\u7167\u6807\u51c6\u4fee\u8ba2"
+  authors:
+    - family-names: "Fan"
+      given-names: "Hui"
+    - family-names: "Yan"
+      given-names: "Yinkun"
+    - family-names: "Mi"
+      given-names: "Jie"
+  journal: "Chinese Journal of Hypertension"
+  year: 2017
+  volume: 25
+  issue: 5
+  start: 428
+  end: 435
+  doi: "10.16439/j.cnki.1673-7245.2017.05.009"

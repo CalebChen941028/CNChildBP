@@ -2,10 +2,11 @@ Package: CNChildBP
 Title: Chinese Child and Adolescent Blood Pressure Evaluation
 Version: 0.0.0.9000
 Authors@R:
-    person("Liangliang", "Chen", , "chenliangliang@example.com", role = c("aut", "cre"))
+    person("Liangliang", "Chen", email = "blingblingchen@126.com", role = c("aut", "cre"))
+Author: Liangliang Chen [aut, cre]
+Maintainer: Liangliang Chen <blingblingchen@126.com>
 Description: A comprehensive R package for evaluating blood pressure in Chinese children and adolescents (ages 3-17) based on the 2017 National Reference Standards. Provides automated data cleaning, intelligent age parsing, and batch evaluation with strict adherence to clinical guidelines including the 120/80 mmHg cap rule.
 License: MIT + file LICENSE
-License-file: LICENSE
 URL: https://github.com/CalebChen941028/CNChildBP
 BugReports: https://github.com/CalebChen941028/CNChildBP/issues
 Encoding: UTF-8

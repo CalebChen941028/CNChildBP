@@ -2,110 +2,128 @@
 % Please edit documentation in R/evaluate_bp.R
 \name{evaluate_bp}
 \alias{evaluate_bp}
-\title{评价中国3-17岁儿童青少年血压 (基于2017年国标)}
+\title{Blood pressure evaluation for Chinese children and adolescents (ages 3-17)}
 \usage{
 evaluate_bp(
   data,
-  sex_col = "性别",
-  age_col = "年龄",
-  height_col = "身高",
-  sbp_col = "收缩压",
-  dbp_col = "舒张压"
+  sex_col = NULL,
+  age_col = NULL,
+  height_col = NULL,
+  sbp_col = NULL,
+  dbp_col = NULL,
   language = c("chinese", "english")
 )
 }
 \arguments{
-\item{data}{一个数据框 (data.frame)，包含待评价的儿童体检数据。}
+\item{data}{A data.frame containing measurements to evaluate.}
 
-\item{sex_col}{字符串。指定性别列的名称（默认为 "性别"）。
-\itemize{
-\item 数据要求：必须包含 "男" 或 "女"，或可被转换为字符的标识。
-}}
+\item{sex_col}{Character; name of the sex column.
+If \code{NULL} (default), the function uses a language-specific default mapping:
+Chinese: "性别"; English: "sex".}
 
-\item{age_col}{字符串。指定年龄列的名称（默认为 "年龄"）。
-\itemize{
-\item 支持格式：数值 (如 10.5)、字符串 (如 "10岁"、"120月")。
-\item 范围：3岁 ~ 17岁 (不满3岁或超过18岁将返回 "无法评价")。
-}}
+\item{age_col}{Character; name of the age column.
+If \code{NULL} (default), the function uses a language-specific default mapping:
+Chinese: "年龄"; English: "age".
+Supported formats include numeric years, "10", "10.5", "10岁",
+"3岁5月", "3y5m", "75months", "75月", etc.}
 
-\item{height_col}{字符串。指定身高列的名称（默认为 "身高"）。
-\itemize{
-\item 单位：\strong{厘米 (cm)}。需注意数据应为数值型。
-}}
+\item{height_col}{Character; name of the height column in cm.
+If \code{NULL} (default), the function uses a language-specific default mapping:
+Chinese: "身高"; English: "height".}
 
-\item{sbp_col}{字符串。指定收缩压(高压)列的名称（默认为 "收缩压"）。
-\itemize{
-\item 单位：\strong{毫米汞柱 (mmHg)}。
-}}
+\item{sbp_col}{Character; name of systolic BP column.
+If \code{NULL} (default), the function uses a language-specific default mapping:
+Chinese: "收缩压"; English: "sbp".}
 
-\item{dbp_col}{字符串。指定舒张压(低压)列的名称（默认为 "舒张压"）。
-\itemize{
-\item 单位：\strong{毫米汞柱 (mmHg)}。
-}}
-\item{language}{字符串。评价结果的语言，可选 \code{"chinese"}（默认）或 \code{"english"}。}
+\item{dbp_col}{Character; name of diastolic BP column.
+If \code{NULL} (default), the function uses a language-specific default mapping:
+Chinese: "舒张压"; English: "dbp".}
+
+\item{language}{Character; one of "chinese" (default) or "english" for output labels.}
 }
 \value{
-返回原始数据框 \code{data}，并在最后增加一列：
-\item{BP_Evaluation}{字符型列，包含评价结果："正常"、"正常高值"、"1期高血压"、"2期高血压"、"缺失" 或 "无法评价(年龄/身高超出范围)"。}
+The input data.frame with an added \code{BP_Evaluation} column.
 }
 \description{
-本函数依据 2017 年发布的《中国3～17岁儿童性别、年龄别和身高别血压参照标准》，对儿童青少年的血压状况进行自动评价。
-函数内置了智能解析逻辑，能够处理各种非标准化的年龄格式（如"3岁5月"），并严格按照医学标准进行身高查表和血压分级。
+Evaluate pediatric blood pressure according to the 2017 Chinese
+sex-/age-/height-specific reference standards. The function includes
+robust input parsing for non-standard age formats and performs height
+rounding and percentile-based classification.
 }
 \details{
-\strong{1. 智能年龄解析逻辑 (Robust Age Parsing)}
-为了提高数据处理的鲁棒性，函数按以下优先级处理 \code{age_col} 列：
+Column mapping behavior:
 \itemize{
-\item \strong{"岁"与"月"混用}：如 "3岁5月"，自动转换为 \eqn{3 + 5/12} 岁。
-\item \strong{纯"岁"或纯"月"}：自动提取数字部分并识别单位。
-\item \strong{纯数字智能推断}：
-\itemize{
-\item 数值 > 18：视为"月龄" (因为17岁是量表上限)，自动除以12转换为岁。
-\item 数值 <= 18：视为"岁龄"。
-}
-\item \strong{查表标准}：计算出的年龄将\strong{向下取整} (floor) 为周岁进行查表。
+\item If \code{sex_col/age_col/height_col/sbp_col/dbp_col} are not provided (all \code{NULL}), the function selects a default column-name mapping by \code{language}.
+\item \code{language = "chinese"} prefers: "性别"/"年龄"/"身高"/"收缩压"/"舒张压".
+\item \code{language = "english"} prefers: "sex"/"age"/"height"/"sbp"/"dbp".
+\item If the preferred set is not found and the user did not provide any mapping arguments, the function will try the other set as a fallback.
+\item If any \verb{*_col} is explicitly provided, the function uses the provided mapping (no automatic fallback).
 }
 
-\strong{2. 身高查表逻辑 (Height Matching)}
+Sex normalization:
 \itemize{
-\item 依据标准，身高需精确匹配表格中的区间。
-\item 函数会对输入的 \code{height_col} 进行\strong{四舍五入} (\code{floor(x + 0.5)}) 取整后，再与标准表中的身高段进行匹配。
+\item Common inputs such as "male"/"female" (or "m"/"f") are normalized to "男"/"女" before table lookup.
 }
 
-\strong{3. 血压评价标准 (Evaluation Criteria)}
-依据 2017 年国标及临床指南，评价结果分为以下四类：
+Robust age parsing logic:
 \itemize{
-\item \strong{正常 (Normal)}: SBP < P90 且 DBP < P90
-\item \strong{正常高值 (High-normal)}: P90 ≤ BP < P95，或 BP ≥ 120/80 mmHg (且未达到高血压标准)
-\item \strong{1期高血压 (Stage 1 Hypertension)}: P95 ≤ BP < P99 + 5 mmHg
-\item \strong{2期高血压 (Stage 2 Hypertension)}: BP ≥ P99 + 5 mmHg
+\item Mixed years and months (e.g. "3 years 5 months") are parsed as \eqn{years + months/12}.
+\item Pure numeric values are interpreted as years if <= 18, otherwise as months (divided by 12).
+\item Parsed ages are floored to whole years for table lookup.
 }
-\emph{注：收缩压(SBP)和舒张压(DBP)分别评价，最终结果取两者中较严重者。}
+
+Height matching:
+\itemize{
+\item Heights are rounded using "round half up": \code{floor(x + 0.5)} before matching table intervals.
+}
+
+Evaluation categories:
+\itemize{
+\item Normal: SBP < P90 and DBP < P90
+\item High-normal: P90 ≤ BP < P95, or BP ≥ 120/80 mmHg (but below hypertension thresholds)
+\item Stage 1 Hypertension: P95 ≤ BP < P99 + 5 mmHg
+\item Stage 2 Hypertension: BP ≥ P99 + 5 mmHg
+}
+
+Important note (diagnosis vs classification):
+\itemize{
+\item This function performs single-record BP \emph{classification} based on percentile thresholds.
+\item Clinical \emph{diagnosis} of pediatric hypertension typically requires elevated BP (≥ P95)
+confirmed at multiple visits (e.g., re-check after 2--4 weeks and confirmed across 3 time points),
+as described in related hypertension guidelines.
+}
 }
 \examples{
-# 1. 基础用法
-df_basic <- data.frame(
+# 1. Basic usage (Chinese columns; default language = "chinese")
+df_cn <- data.frame(
   性别 = c("男", "女"),
   年龄 = c(10, 12),
   身高 = c(140, 150),
   收缩压 = c(110, 130),
   舒张压 = c(70, 85)
 )
-# evaluate_bp(df_basic)
+# evaluate_bp(df_cn)
 
-# 2. 处理复杂年龄格式
+# 2. Basic usage (English columns; use language = "english")
+df_en <- data.frame(
+  sex = c("male", "female"),
+  age = c(10, 12),
+  height = c(140, 150),
+  sbp = c(110, 130),
+  dbp = c(70, 85)
+)
+# evaluate_bp(df_en, language = "english")
+
+# 3. Handle mixed age formats
 df_complex <- data.frame(
-  sex = c("男", "男", "女"),
-  age = c("75月", "3岁5月", "120"), # 分别对应：6.25岁, 3.41岁, 10岁
-  ht = c(120.5, 98, 140),
+  sex = c("male", "male", "female"),
+  age = c("75months", "3y5m", "120"), # 6.25y, 3.41y, 10y
+  height = c(120.5, 98, 140),
   sbp = c(110, 90, 130),
   dbp = c(70, 60, 85)
 )
-# 指定列名进行评价
-# evaluate_bp(df_complex,
-#             sex_col = "sex", age_col = "age", height_col = "ht",
-#             sbp_col = "sbp", dbp_col = "dbp")
-}
-\references{
-范晖, 闫银坤, 米杰. 中国3～17岁儿童性别、年龄别和身高别血压参照标准修订[J]. 中华高血压杂志, 2017, 25(5): 428-435. DOI: 10.16439/j.cnki.1673-7245.2017.05.009
+# evaluate_bp(df_complex, language = "english")
+
+# 4. Output labels can be switched via `language`
+# evaluate_bp(df_cn, language = "english")
 }
