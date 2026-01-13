@@ -25,5 +25,12 @@ print(res_en$BP_Evaluation)
 
 # 3) Save Chinese-labeled result to CSV with UTF-8 encoding
 out_path <- file.path("inst", "examples", "demo_output_cn.csv")
+
+# Ensure the output directory exists before writing
+out_dir <- dirname(out_path)
+if (!dir.exists(out_dir)) {
+  dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+}
+
 write.csv(res_cn, out_path, row.names = FALSE, fileEncoding = "UTF-8")
 cat("Saved Chinese-labeled results to:", out_path, "\n")

@@ -1,4 +1,4 @@
-## Package startup / internal helpers
+## Global variable declarations for R CMD check
 ## Place global variable declarations here to satisfy R CMD check
 if (getRversion() >= "2.15.1") {
   utils::globalVariables(c(

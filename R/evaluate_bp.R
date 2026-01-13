@@ -13,7 +13,7 @@
 #'   \item If `sex_col/age_col/height_col/sbp_col/dbp_col` are not provided (all `NULL`), the function selects a default column-name mapping by `language`.
 #'   \item `language = "chinese"` prefers: "性别"/"年龄"/"身高"/"收缩压"/"舒张压".
 #'   \item `language = "english"` prefers: "sex"/"age"/"height"/"sbp"/"dbp".
-#'   \item If the preferred set is not found and the user did not provide any mapping arguments, the function will try the other set as a fallback.
+#'   \item If the preferred set is not found and the user did not provide any mapping arguments, the function will try the other set as a fallback. When fallback is used, a message is emitted by default.
 #'   \item If any `*_col` is explicitly provided, the function uses the provided mapping (no automatic fallback).
 #' }
 #'
@@ -25,7 +25,7 @@
 #' Robust age parsing logic:
 #' \itemize{
 #'   \item Mixed years and months (e.g. "3 years 5 months") are parsed as \eqn{years + months/12}.
-#'   \item Pure numeric values are interpreted as years if <= 18, otherwise as months (divided by 12).
+#'   \item Pure numeric values are interpreted as years if <= 18. If > 18, they are interpreted as months only when (value/12) yields an age within 3--17 years; otherwise they are treated as years.
 #'   \item Parsed ages are floored to whole years for table lookup.
 #' }
 #'
@@ -69,6 +69,7 @@
 #'   If `NULL` (default), the function uses a language-specific default mapping:
 #'   Chinese: "舒张压"; English: "dbp".
 #' @param language Character; one of "chinese" (default) or "english" for output labels.
+#' @param quiet Logical; if `TRUE`, suppress informational messages (e.g., when column-name fallback is used).
 #'
 #' @return The input data.frame with an added `BP_Evaluation` column.
 #'
@@ -115,10 +116,15 @@ evaluate_bp <- function(data,
                         height_col = NULL,
                         sbp_col = NULL,
                         dbp_col = NULL,
-                        language = c("chinese", "english")) {
+                        language = c("chinese", "english"),
+                        quiet = FALSE) {
 
   # 0. match language argument
   language <- match.arg(language)
+
+  if (!is.logical(quiet) || length(quiet) != 1 || is.na(quiet)) {
+    stop("`quiet` must be a single TRUE/FALSE value")
+  }
 
   # 0b. column name mapping defaults
   user_provided_mapping <- !is.null(sex_col) || !is.null(age_col) || !is.null(height_col) || !is.null(sbp_col) || !is.null(dbp_col)
@@ -193,6 +199,9 @@ evaluate_bp <- function(data,
   required_cols <- c(sex_col, age_col, height_col, sbp_col, dbp_col)
   missing_cols <- setdiff(required_cols, names(data))
 
+  used_fallback <- FALSE
+  fallback_direction <- NULL
+
   # If user did not provide any mapping args, try the other language's defaults as a fallback.
   if (length(missing_cols) > 0 && !user_provided_mapping) {
     fallback_cols <- if (language == "chinese") {
@@ -216,6 +225,23 @@ evaluate_bp <- function(data,
       dbp_col <- fallback_cols$dbp_col
       required_cols <- fallback_required
       missing_cols <- character(0)
+
+      used_fallback <- TRUE
+      fallback_direction <- if (language == "chinese") "english" else "chinese"
+    }
+  }
+
+  if (used_fallback && !quiet) {
+    if (identical(fallback_direction, "english")) {
+      message(
+        "Column mapping fallback: language='chinese' but detected English columns (sex, age, height, sbp, dbp). ",
+        "Use *_col to override or quiet=TRUE to suppress this message."
+      )
+    } else {
+      message(
+        "Column mapping fallback: language='english' but detected Chinese columns (性别, 年龄, 身高, 收缩压, 舒张压). ",
+        "Use *_col to override or quiet=TRUE to suppress this message."
+      )
     }
   }
 
@@ -259,8 +285,16 @@ evaluate_bp <- function(data,
 
       num_val <- suppressWarnings(as.numeric(s))
       if (!is.na(num_val)) {
-        # If value > 18, it is likely months (e.g., 74 months). Otherwise treat as years.
-        if (num_val > 18) return(num_val / 12)
+        # For bare numeric values, decide between interpreting as years vs. months.
+        # If value > 18, consider it as months only when that yields an age within 3–17 years.
+        if (num_val > 18) {
+          age_as_years_from_months <- num_val / 12
+          if (age_as_years_from_months >= 3 && age_as_years_from_months <= 17) {
+            return(age_as_years_from_months)
+          }
+          # Otherwise, treat the numeric value as years and let downstream validation handle range.
+          return(num_val)
+        }
         return(num_val)
       }
 
@@ -357,6 +391,5 @@ evaluate_bp <- function(data,
   return(final_result)
 }
 
-
 ## Declare globals to satisfy R CMD check NOTES about undefined globals
- 
+

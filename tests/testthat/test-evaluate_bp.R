@@ -108,10 +108,56 @@ test_that("missing BP yields Missing label", {
   expect_equal(res$BP_Evaluation[[1]], "Missing")
 })
 
+test_that("column mapping fallback works: language='chinese' with English columns", {
+  standards <- CNChildBP::bp_standards
+  row <- standards[1, , drop = FALSE]
+  height_mid <- floor(((row$Height_Lower + row$Height_Upper) / 2) + 0.5)
+
+  df <- data.frame(
+    sex = row$Sex,
+    age = row$Age,
+    height = height_mid,
+    sbp = row$SBP_P90 - 1,
+    dbp = row$DBP_P90 - 1
+  )
+
+  expect_message(
+    res <- evaluate_bp(df, language = "chinese"),
+    "Column mapping fallback"
+  )
+  expect_equal(res$BP_Evaluation[[1]], "正常")
+
+  expect_silent(res_q <- evaluate_bp(df, language = "chinese", quiet = TRUE))
+  expect_equal(res_q$BP_Evaluation[[1]], "正常")
+})
+
+test_that("column mapping fallback works: language='english' with Chinese columns", {
+  standards <- CNChildBP::bp_standards
+  row <- standards[1, , drop = FALSE]
+  height_mid <- floor(((row$Height_Lower + row$Height_Upper) / 2) + 0.5)
+
+  df <- data.frame(
+    性别 = row$Sex,
+    年龄 = row$Age,
+    身高 = height_mid,
+    收缩压 = row$SBP_P90 - 1,
+    舒张压 = row$DBP_P90 - 1
+  )
+
+  expect_message(
+    res <- evaluate_bp(df, language = "english"),
+    "Column mapping fallback"
+  )
+  expect_equal(res$BP_Evaluation[[1]], "Normal")
+
+  expect_silent(res_q <- evaluate_bp(df, language = "english", quiet = TRUE))
+  expect_equal(res_q$BP_Evaluation[[1]], "Normal")
+})
+
 test_that("out of range age yields out_of_range label", {
   df <- data.frame(
     sex = "male",
-    age = 2,
+    age = 20,
     height = 100,
     sbp = 100,
     dbp = 60

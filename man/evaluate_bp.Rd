@@ -11,7 +11,8 @@ evaluate_bp(
   height_col = NULL,
   sbp_col = NULL,
   dbp_col = NULL,
-  language = c("chinese", "english")
+  language = c("chinese", "english"),
+  quiet = FALSE
 )
 }
 \arguments{
@@ -40,6 +41,8 @@ If \code{NULL} (default), the function uses a language-specific default mapping:
 Chinese: "舒张压"; English: "dbp".}
 
 \item{language}{Character; one of "chinese" (default) or "english" for output labels.}
+
+\item{quiet}{Logical; if \code{TRUE}, suppress informational messages (e.g., when column-name fallback is used).}
 }
 \value{
 The input data.frame with an added \code{BP_Evaluation} column.
@@ -56,7 +59,7 @@ Column mapping behavior:
 \item If \code{sex_col/age_col/height_col/sbp_col/dbp_col} are not provided (all \code{NULL}), the function selects a default column-name mapping by \code{language}.
 \item \code{language = "chinese"} prefers: "性别"/"年龄"/"身高"/"收缩压"/"舒张压".
 \item \code{language = "english"} prefers: "sex"/"age"/"height"/"sbp"/"dbp".
-\item If the preferred set is not found and the user did not provide any mapping arguments, the function will try the other set as a fallback.
+\item If the preferred set is not found and the user did not provide any mapping arguments, the function will try the other set as a fallback. When fallback is used, a message is emitted by default.
 \item If any \verb{*_col} is explicitly provided, the function uses the provided mapping (no automatic fallback).
 }
 
@@ -68,7 +71,7 @@ Sex normalization:
 Robust age parsing logic:
 \itemize{
 \item Mixed years and months (e.g. "3 years 5 months") are parsed as \eqn{years + months/12}.
-\item Pure numeric values are interpreted as years if <= 18, otherwise as months (divided by 12).
+\item Pure numeric values are interpreted as years if <= 18. If > 18, they are interpreted as months only when (value/12) yields an age within 3--17 years; otherwise they are treated as years.
 \item Parsed ages are floored to whole years for table lookup.
 }
 
